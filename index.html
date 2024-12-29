@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Playground</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Cleaner font */
+            background-color: #121212;
+            color: white;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        #imageContainer {
+            width: 100%;
+            height: 80vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-wrapper {
+            margin: 10px;
+            position: absolute;
+            cursor: pointer;
+            transition: transform 0.5s ease-in-out;
+            touch-action: none;
+        }
+
+        .image-wrapper img {
+            width: 100px;
+            height: 100px;
+            border-radius: 10px;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .image-wrapper.spinning img {
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Sleek and smaller Buttons */
+        button, label {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px; /* Smaller padding */
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px; /* Smaller font size */
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+            margin: 5px;
+        }
+
+        button:hover, label[for="imageUpload"]:hover {
+            background-color: #444;
+            transform: scale(1.05);
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active, label[for="imageUpload"]:active {
+            background-color: #222;
+        }
+
+        /* Flexbox for buttons */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px; /* Space between buttons */
+        }
+
+        /* Custom File Upload Styling */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Settings Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: #333;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .modal-content label {
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .modal-content input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        .modal-content input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .modal-content .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal-content .close:hover {
+            color: #fff;
+        }
+
+        /* Mobile Support */
+        @media (max-width: 600px) {
+            .image-wrapper img {
+                width: 80px;
+                height: 80px;
+            }
+
+            button, label {
+                padding: 8px 16px;
+                font-size: 12px; /* Smaller text for mobile */
+            }
+
+            .button-container {
+                flex-direction: column;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- Settings Button -->
+<button id="settingsButton">Settings</button>
+
+<!-- Modal for Settings -->
+<div id="settingsModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeSettings">&times;</span>
+        <h2>Settings</h2>
+        <div>
+            <label>
+                <input type="checkbox" id="darkMode"> Dark Mode
+            </label>
+        </div>
+        <div>
+            <label>
+                <input type="checkbox" id="greenScreen"> Green Screen
+            </label>
+        </div>
+        <div>
+            <label for="spinSpeed">Spin Speed</label>
+            <input type="range" id="spinSpeed" min="1" max="10" step="0.1" value="2">
+        </div>
+    </div>
+</div>
+
+<!-- Image Container -->
+<div id="imageContainer"></div>
+
+<!-- File Upload and Control Buttons -->
+<div class="button-container">
+    <input type="file" id="imageUpload" />
+    <label for="imageUpload">Upload Image</label>
+    <button id="addImage">Add Image</button>
+    <button id="removeSlide">Remove Last Image</button>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        const imageContainer = document.getElementById('imageContainer');
+        const addImageButton = document.getElementById('addImage');
+        const imageUpload = document.getElementById('imageUpload');
+        const removeSlideButton = document.getElementById('removeSlide');
+        const spinSpeedSlider = document.getElementById('spinSpeed');
+        const greenScreenCheckbox = document.getElementById('greenScreen');
+        const darkModeCheckbox = document.getElementById('darkMode');
+
+        // Modal for settings
+        const settingsModal = document.getElementById("settingsModal");
+        const settingsButton = document.getElementById("settingsButton");
+        const closeSettingsButton = document.getElementById("closeSettings");
+
+        // Open Settings Modal
+        settingsButton.onclick = function() {
+            settingsModal.style.display = "block";
+        }
+
+        // Close Settings Modal
+        closeSettingsButton.onclick = function() {
+            settingsModal.style.display = "none";
+        }
+
+        // Close Modal if clicked outside
+        window.onclick = function(event) {
+            if (event.target === settingsModal) {
+                settingsModal.style.display = "none";
+            }
+        }
+
+        // Load settings from local storage
+        const loadSettings = () => {
+            const settings = JSON.parse(localStorage.getItem('settings')) || {};
+            greenScreenCheckbox.checked = settings.greenScreen || false;
+            darkModeCheckbox.checked = settings.darkMode || false;
+            spinSpeedSlider.value = settings.spinSpeed || 2;
+            applySettings();
+        };
+
+        // Save settings to local storage
+        const saveSettings = () => {
+            const settings = {
+                greenScreen: greenScreenCheckbox.checked,
+                darkMode: darkModeCheckbox.checked,
+                spinSpeed: spinSpeedSlider.value
+            };
+            localStorage.setItem('settings', JSON.stringify(settings));
+        };
+
+        // Apply settings
+        const applySettings = () => {
+            if (darkModeCheckbox.checked) {
+                document.body.classList.add('dark');
+            } else {
+                document.body.classList.remove('dark');
+            }
+            if (greenScreenCheckbox.checked) {
+                imageContainer.style.backgroundColor = 'green';
+            } else {
+                imageContainer.style.backgroundColor = 'transparent';
+            }
+
+            // Apply the spinning speed to all images
+            const spinningImages = document.querySelectorAll('.image-wrapper');
+            spinningImages.forEach(image => {
+                const img = image.querySelector('img');
+                img.style.animationDuration = `${spinSpeedSlider.value}s`;
+            });
+        };
+
+        // Add image to container
+        const addImage = (file) => {
+            const imgWrapper = document.createElement('div');
+            imgWrapper.classList.add('image-wrapper', 'spinning');
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            imgWrapper.appendChild(img);
+            imageContainer.appendChild(imgWrapper);
+
+            // Make images draggable
+            makeImageDraggable(imgWrapper);
+
+            applySettings();
+        };
+
+        // Make image draggable
+        const makeImageDraggable = (imgWrapper) => {
+            let offsetX, offsetY, dragging = false;
+
+            imgWrapper.addEventListener('mousedown', (e) => {
+                dragging = true;
+                offsetX = e.clientX - imgWrapper.getBoundingClientRect().left;
+                offsetY = e.clientY - imgWrapper.getBoundingClientRect().top;
+
+                document.addEventListener('mousemove', moveImage);
+                document.addEventListener('mouseup', () => {
+                    dragging = false;
+                    document.removeEventListener('mousemove', moveImage);
+                });
+            });
+
+            function moveImage(e) {
+                if (dragging) {
+                    imgWrapper.style.left = `${e.clientX - offsetX}px`;
+                    imgWrapper.style.top = `${e.clientY - offsetY}px`;
+                }
+            }
+        };
+
+        // Add image event
+        addImageButton.addEventListener('click', () => {
+            const file = imageUpload.files[0];
+            if (file) {
+                addImage(file);
+                imageUpload.value = ''; // Clear the input
+            }
+        });
+
+        // Remove last image event
+        removeSlideButton.addEventListener('click', () => {
+            const images = imageContainer.querySelectorAll('.image-wrapper');
+            if (images.length > 0) {
+                images[images.length - 1].remove();
+            }
+        });
+
+        // Event listeners for settings
+        greenScreenCheckbox.addEventListener('change', () => {
+            saveSettings();
+            applySettings();
+        });
+
+        darkModeCheckbox.addEventListener('change', () => {
+            saveSettings();
+            applySettings();
+        });
+
+        spinSpeedSlider.addEventListener('input', () => {
+            saveSettings();
+            applySettings();
+        });
+
+        // Load settings on page load
+        loadSettings();
+    });
+</script>
+
+</body>
+</html>
